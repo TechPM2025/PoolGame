@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dynamic Pool Fixture Creator</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #f0f0f0;
+    color: #222;
+  }
+  h1, h2 {
+    text-align: center;
+  }
+  #playersForm {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+  .player-input {
+    display: flex;
+    gap: 5px;
+  }
+  input[type=text], select, input[type=number] {
+    padding: 6px;
+    font-size: 14px;
+  }
+  button {
+    cursor: pointer;
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 6px;
+    text-align: center;
+  }
+  th {
+    background-color: #ddd;
+  }
+  #matchInputSection, #knockoutSection, #finalResult {
+    margin-top: 20px;
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+  }
+  #knockoutSection {
+    display: none;
+  }
+  #finalResult {
+    display: none;
+    font-weight: bold;
+    font-size: 1.2em;
+    text-align: center;
+  }
+  @media (max-width: 600px) {
+    body {
+      margin: 10px;
+      font-size: 14px;
+    }
+    #playersForm {
+      flex-direction: column;
+      align-items: center;
+    }
+    .player-input {
+      flex-direction: column;
+      width: 80%;
+    }
+    input[type=text], select, input[type=number], button {
+      width: 100%;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    table {
+      font-size: 12px;
+    }
+  }
+</style>
+</head>
+<body>
+  <h1>Dynamic Pool Fixture Creator</h1>
+
+  <h2>1. Enter Players</h2>
+  <div id="playersForm"></div>
+  <button onclick="addPlayer()">Add Player</button>
+  <button onclick="resetAll()">Reset All</button>
+
+  <h2>2. Enter Matches for Group Stage</h2>
+  <div id="matchInputSection">
+    <label for="matchSelect">Select Match:</label>
+    <select id="matchSelect"></select><br/><br/>
+    <label for="winnerSelect">Winner:</label>
+    <select id="winnerSelect"></select><br/><br/>
+    <label for="ballsLeft">Balls Left for Winner (+points):</label>
+    <input type="number" id="ballsLeft" min="0" value="0"/><br/><br/>
+    <button onclick="submitGroupMatch()">Submit Group Match</button>
+  </div>
+
+  <h2>3. Group Stage Standings</h2>
+  <table id="standingsTable">
+    <thead>
+      <tr><th>Player</th><th>Points</th><th>Wins</th><th>Losses</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="knockoutSection">
+    <h2>4. Knockout Stage (Semi-Finals & Final)</h2>
+    <div id="knockoutMatches"></div>
+    <button onclick="submitKnockoutMatch()">Submit Knockout Match</button>
+  </div>
+
+  <div id="finalResult"></div>
+
+  <br/>
+  <button onclick="exportToPDF()">Export Final Results to PDF</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  let players = [];
+  let groupMatches = []; // {player1, player2, winner, ballsLeft}
+  let knockoutMatches = []; // {player1, player2, winner, ballsLeft, round} rounds: semi1, semi2, final
+  let results = {}; // {playerName: {points, wins, losses}}
+
+  // Initialize UI
+  function addPlayer(name='') {
+    if(players.length >= 20) { alert("Max 20 players allowed."); return; }
+    players.push(name || `Player${players.length+1}`);
+    results = {};
+    players.forEach(p => {
+      if(!results[p]) results[p] = {points:0, wins:0, losses:0};
+    });
+    renderPlayers();
+    generateGroupMatches();
+    updateMatchSelectors();
+    updateStandings();
+  }
+  function removePlayer(index) {
+    players.splice(index,1);
+    delete results[players[index]];
+    generateGroupMatches();
+    renderPlayers();
+    updateMatchSelectors();
+    updateStandings();
+  }
+
+  function renderPlayers() {
+    const form = document.getElementById('playersForm');
+    form.innerHTML = '';
+    players.forEach((p,i) => {
+      const div = document.createElement('div');
+      div.className = 'player-input';
+      div.innerHTML = `
+        <input type="text" value="${p}" oninput="updatePlayerName(${i}, this.value)" />
+        <button onclick="removePlayer(${i})">X</button>
+      `;
+      form.appendChild(div);
+    });
+  }
+
+  function updatePlayerName(index, val) {
+    players[index] = val.trim() || `Player${index+1}`;
+    if(!results[players[index]]) results[players[index]] = {points:0, wins:0, losses:0};
+    generateGroupMatches();
+    updateMatchSelectors();
+    updateStandings();
+  }
+
+  // Generate all possible matches in group stage (round robin)
+  function generateGroupMatches() {
+    groupMatches = [];
+    for(let i=0; i<players.length; i++) {
+      for(let j=i+1; j<players.length; j++) {
+        groupMatches.push({player1: players[i], player2: players[j], winner: null, ballsLeft: 0});
+      }
+    }
+  }
+
+  // Update dropdowns for group stage match input
+  function updateMatchSelectors() {
+    const matchSelect = document.getElementById('matchSelect');
+    const winnerSelect = document.getElementById('winnerSelect');
+    matchSelect.innerHTML = '';
+    winnerSelect.innerHTML = '';
+
+    groupMatches.forEach((m,i) => {
+      if(m.winner === null) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `${m.player1} vs ${m.player2}`;
+        matchSelect.appendChild(option);
+      }
+    });
+
+    if(matchSelect.options.length > 0) {
+      winnerSelect.innerHTML = `
+        <option value="player1">${groupMatches[matchSelect.value].player1}</option>
+        <option value="player2">${groupMatches[matchSelect.value].player2}</option>
+      `;
+    } else {
+      winnerSelect.innerHTML = '<option>No matches left</option>';
+    }
+  }
+
+  // When match dropdown changes, update winner dropdown
+  document.getElementById('matchSelect').addEventListener('change', e => {
+    const idx = e.target.value;
+    const winnerSelect = document.getElementById('winnerSelect');
+    winnerSelect.innerHTML = '';
+    if(groupMatches[idx]) {
+      winnerSelect.innerHTML = `
+        <option value="player1">${groupMatches[idx].player1}</option>
+        <option value="player2">${groupMatches[idx].player2}</option>
+      `;
+    }
+  });
+
+  function updateStandings() {
+    const tbody = document.querySelector('#standingsTable tbody');
+    tbody.innerHTML = '';
+
+    // Reset results object
+    players.forEach(p => {
+      if(!results[p]) results[p] = {points:0, wins:0, losses:0};
+      else {
+        results[p].points = 0;
+        results[p].wins = 0;
+        results[p].losses = 0;
+      }
+    });
+
+    // Calculate from group matches results
+    groupMatches.forEach(m => {
+      if(m.winner !== null) {
+        let winnerName = (m.winner === 'player1') ? m.player1 : m.player2;
+        let loserName = (m.winner === 'player1') ? m.player2 : m.player1;
+        results[winnerName].wins++;
+        results[winnerName].points += (2 + m.ballsLeft);
+        results[loserName].losses++;
+        results[loserName].points -= 4;
+      }
+    });
+
+    // Calculate from knockout matches as well (wins + points)
+    knockoutMatches.forEach(m => {
+      if(m.winner !== null) {
+        let winnerName = (m.winner === 'player1') ? m.player1 : m.player2;
+        let loserName = (m.winner === 'player1') ? m.player2 : m.player1;
+        results[winnerName].wins++;
+        results[winnerName].points += (2 + m.ballsLeft);
+        results[loserName].losses++;
+        results[loserName].points -= 4;
+      }
+    });
+
+    // Sort players by points descending
+    const sorted = [...players].sort((a,b) => results[b].points - results[a].points);
+
+    sorted.forEach(p => {
+      const r = results[p];
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${p}</td><td>${r.points}</td><td>${r.wins}</td><td>${r.losses}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Submit a group stage match result
+  function submitGroupMatch() {
+    const matchIdx = parseInt(document.getElementById('matchSelect').value);
+    if(isNaN(matchIdx) || !groupMatches[matchIdx]) {
+      alert("Select a valid match");
+      return;
+    }
+    if(groupMatches[matchIdx].winner !== null) {
+      alert("This match result already submitted");
+      return;
+    }
+    const winner = document.getElementById('winnerSelect').value;
+    const ballsLeft = parseInt(document.getElementById('ballsLeft').value) || 0;
+    groupMatches[matchIdx].winner = winner;
+    groupMatches[matchIdx].ballsLeft = ballsLeft;
+
+    updateStandings();
+    updateMatchSelectors();
+
+    // Check if all group matches done - if yes start knockout
+    if(groupMatches.every(m => m.winner !== null)) {
+      startKnockoutStage();
+    }
+  }
+
+  // Knockout stage functions
+  function startKnockoutStage() {
+    // Pick top 4 players by points
+    const sorted = [...players].sort((a,b) => results[b].points - results[a].points);
+    const qualifiers = sorted.slice(0, 4);
+
+    if(qualifiers.length < 4) {
+      alert("Not enough qualifiers for knockout.");
+      return;
+    }
+
+    // Reset knockout matches
+    knockoutMatches = [
+      {player1: qualifiers[0], player2: qualifiers[3], winner: null, ballsLeft: 0, round: 'semi1'},
+      {player1: qualifiers[1], player2: qualifiers[2], winner: null, ballsLeft: 0, round: 'semi2'},
+      {player1: null, player2: null, winner: null, ballsLeft: 0, round: 'final'},
+    ];
+
+    // Show knockout UI
+    document.getElementById('knockoutSection').style.display = 'block';
+    document.getElementById('finalResult').style.display = 'none';
+
+    renderKnockoutMatches();
+  }
+
+  function renderKnockoutMatches() {
+    const container = document.getElementById('knockoutMatches');
+    container.innerHTML = '';
+
+    knockoutMatches.forEach((m,i) => {
+      if(m.round.startsWith('semi')) {
+        container.innerHTML += `
+          <div>
+            <h4>Semi-Final ${m.round === 'semi1' ? '1' : '2'}</h4>
+            <p>${m.player1} vs ${m.player2}</p>
+            <label>Winner:</label>
+            <select id="knockoutWinner${i}">
+              <option value="player1">${m.player1}</option>
+              <option value="player2">${m.player2}</option>
+            </select>
+            <br/>
+            <label>Balls Left for Winner (+points):</label>
+            <input type="number" id="knockoutBalls${i}" min="0" value="0" />
+            <hr/>
+          </div>
+        `;
+      } else if(m.round === 'final' && m.player1 && m.player2) {
+        container.innerHTML += `
+          <div>
+            <h4>Final</h4>
+            <p>${m.player1} vs ${m.player2}</p>
+            <label>Winner:</label>
+            <select id="knockoutWinner${i}">
+              <option value="player1">${m.player1}</option>
+              <option value="player2">${m.player2}</option>
+            </select>
+            <br/>
+            <label>Balls Left for Winner (+points):</label>
+            <input type="number" id="knockoutBalls${i}" min="0" value="0" />
+          </div>
+        `;
+      }
+    });
+  }
+
+  // Submit knockout match results one by one (sequential)
+  function submitKnockoutMatch() {
+    // Submit semi-finals first
+    let semi1 = knockoutMatches.find(m => m.round === 'semi1');
+    let semi2 = knockoutMatches.find(m => m.round === 'semi2');
+    let final = knockoutMatches.find(m => m.round === 'final');
+
+    // Validate semi-finals results
+    if(semi1.winner === null) {
+      // Submit semi1
+      const wSel = document.getElementById('knockoutWinner0');
+      const balls = parseInt(document.getElementById('knockoutBalls0').value) || 0;
+      semi1.winner = wSel.value;
+      semi1.ballsLeft = balls;
+      updateStandings();
+      alert('Semi-Final 1 submitted.');
+      return;
+    }
+    if(semi2.winner === null) {
+      // Submit semi2
+      const wSel = document.getElementById('knockoutWinner1');
+      const balls = parseInt(document.getElementById('knockoutBalls1').value) || 0;
+      semi2.winner = wSel.value;
+      semi2.ballsLeft = balls;
+      updateStandings();
+      alert('Semi-Final 2 submitted.');
+      // Setup Final players
+      final.player1 = (semi1.winner === 'player1') ? semi1.player1 : semi1.player2;
+      final.player2 = (semi2.winner === 'player1') ? semi2.player1 : semi2.player2;
+      renderKnockoutMatches();
+      return;
+    }
+
+    // Now final match
+    if(final.winner === null) {
+      const wSel = document.getElementById('knockoutWinner2');
+      const balls = parseInt(document.getElementById('knockoutBalls2').value) || 0;
+      final.winner = wSel.value;
+      final.ballsLeft = balls;
+      updateStandings();
+
+      // Show winner
+      let winnerName = (final.winner === 'player1') ? final.player1 : final.player2;
+      document.getElementById('finalResult').style.display = 'block';
+      document.getElementById('finalResult').textContent = `?? Winner is: ${winnerName}`;
+      alert(`Tournament finished! Winner: ${winnerName}`);
+
+      // Hide knockout input to avoid confusion
+      document.getElementById('knockoutSection').style.display = 'none';
+      return;
+    }
+  }
+
+  // Reset all data and UI
+  function resetAll() {
+    if(!confirm("Are you sure you want to reset everything?")) return;
+    players = [];
+    groupMatches = [];
+    knockoutMatches = [];
+    results = {};
+    document.getElementById('playersForm').innerHTML = '';
+    document.getElementById('matchSelect').innerHTML = '';
+    document.getElementById('winnerSelect').innerHTML = '';
+    document.getElementById('ballsLeft').value = 0;
+    document.querySelector('#standingsTable tbody').innerHTML = '';
+    document.getElementById('knockoutSection').style.display = 'none';
+    document.getElementById('finalResult').style.display = 'none';
+  }
+
+  // Export results to PDF using jsPDF
+  function exportToPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(16);
+    doc.text("Pool Game Tournament Results", 14, 20);
+
+    let y = 30;
+    doc.setFontSize(12);
+    // Add standings table
+    doc.text("Standings:", 14, y);
+    y += 8;
+
+    const sorted = [...players].sort((a,b) => results[b].points - results[a].points);
+
+    sorted.forEach(p => {
+      let r = results[p];
+      doc.text(`${p}: Points ${r.points}, Wins ${r.wins}, Losses ${r.losses}`, 14, y);
+      y += 7;
+    });
+
+    // Winner info
+    const final = knockoutMatches.find(m => m.round === 'final');
+    if(final && final.winner !== null) {
+      let winnerName = (final.winner === 'player1') ? final.player1 : final.player2;
+      y += 10;
+      doc.setFontSize(14);
+      doc.text(`?? Winner: ${winnerName}`, 14, y);
+    }
+
+    const timestamp = new Date().toISOString().replace(/:/g, '-');
+    const filename = `PoolGameResults_${timestamp}.pdf`;
+
+    doc.save(filename);
+  }
+
+  // Initialize with 4 players by default
+  for(let i=0; i<4; i++) addPlayer();
+
+</script>
+</body>
+</html>
