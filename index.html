@@ -628,6 +628,13 @@
                 loadWinnerHistory();
                 addEventListeners();
             };
+            
+            // **NEW**: Handler for the beforeunload event to prevent accidental refresh
+            const preventAccidentalRefresh = (e) => {
+                // Standard way to show a confirmation prompt.
+                e.preventDefault();
+                e.returnValue = '';
+            };
 
             // --- EVENT LISTENERS ---
             const addEventListeners = () => {
@@ -697,6 +704,17 @@
                 state.players = names;
                 document.querySelectorAll('#setup-section input, #setup-section button').forEach(el => el.disabled = true);
                 generateFixtures();
+                
+                // If fixture generation fails, stop here. The error is shown by generateFixtures.
+                if (state.fixtures.length === 0) {
+                    state.isSetupConfirmed = false; // unlock state
+                    document.querySelectorAll('#setup-section input, #setup-section button').forEach(el => el.disabled = false);
+                    return;
+                }
+
+                // **NEW**: Activate the refresh protection
+                window.addEventListener('beforeunload', preventAccidentalRefresh);
+
                 renderFixtures();
                 initializeStandings();
                 fixturesSection.style.display = 'block';
@@ -753,7 +771,7 @@
                 if (finalFixtures.length < requiredTotalFixtures) {
                     console.error("Could not generate a valid fixture list. Please try again.");
                     setupError.textContent = "Could not generate a fair schedule. Please try a different number of matches.";
-                    confirmSetupBtn.disabled = false;
+                    state.fixtures = []; // Ensure fixtures are empty on failure
                     return;
                 }
 
@@ -851,6 +869,9 @@
                 winnerNameEl.textContent = winnerName;
                 winnerAnnouncement.style.display = 'block';
                 saveWinnerToHistory(winnerName);
+                
+                // **NEW**: Remove refresh protection when tournament is over
+                window.removeEventListener('beforeunload', preventAccidentalRefresh);
             };
 
             // --- KNOCKOUT STAGE ---
@@ -985,8 +1006,10 @@
                 renderWinnerHistory();
             };
             
-            // **CHANGE**: Reset function no longer reloads the page
             const handleReset = () => {
+                // **NEW**: Remove refresh protection before resetting
+                window.removeEventListener('beforeunload', preventAccidentalRefresh);
+
                 // Reset state object to its initial values
                 state = {
                     players: [],
@@ -1030,8 +1053,6 @@
 
                 // Clear any previous error messages
                 setupError.textContent = '';
-
-                // Note: The winner history table is NOT cleared, fulfilling the requirement.
             };
 
             // --- START THE APP ---
