@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pool Tournament Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* --- Root Variables & Base Styles --- */
+        :root {
+            --bg-color: #f4f7f9;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --text-muted: #777;
+            --border-color: #e0e0e0;
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --disabled-bg: #e9ecef;
+            --disabled-text: #6c757d;
+            --shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --text-muted: #888;
+            --border-color: #333;
+            --primary-color: #0d6efd;
+            --primary-hover: #3d8bfd;
+            --disabled-bg: #2a2a2a;
+            --disabled-text: #777;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+            line-height: 1.6;
+        }
+
+        .app-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            margin-right: 1rem;
+        }
+
+        .controls-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* --- Cards and Sections --- */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .card h2 {
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+
+        /* --- Forms & Buttons --- */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: var(--text-muted);
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        button, .control-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        button:hover, .control-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button:disabled, input:disabled, select:disabled {
+            background-color: var(--disabled-bg);
+            color: var(--disabled-text);
+            cursor: not-allowed;
+            border-color: var(--border-color);
+        }
+
+        #reset-button, .modal-button.danger {
+            background-color: var(--danger-color);
+        }
+        #reset-button:hover, .modal-button.danger:hover {
+            background-color: #c82333;
+        }
+
+        .error-message {
+            color: var(--danger-color);
+            margin-top: 1rem;
+            font-weight: bold;
+            min-height: 1.2em;
+        }
+
+        #player-names-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* --- Fixtures Grid --- */
+        .fixtures-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .fixture-card {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .fixture-card h4 {
+            text-align: center;
+            font-size: 1.1rem;
+            color: var(--primary-color);
+        }
+
+        .fixture-match {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: bold;
+        }
+
+        .fixture-result {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .fixture-result button {
+            background-color: var(--success-color);
+        }
+
+        .fixture-result button:hover {
+            background-color: #218838;
+        }
+
+        /* --- Main Layout Grid --- */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        /* --- Tables --- */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        thead {
+            background-color: var(--disabled-bg);
+        }
+
+        th {
+            font-weight: bold;
+        }
+
+        tbody tr:hover {
+            background-color: rgba(0, 123, 255, 0.05);
+        }
+
+        [data-theme="dark"] tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .delete-history-btn {
+            background: none;
+            border: none;
+            color: var(--danger-color);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0;
+        }
+
+        /* --- Knockout Stage --- */
+        #knockout-section h4 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+        .knockout-match {
+            border: 1px dashed var(--border-color);
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .knockout-match .fixture-result {
+             margin-top: 0.75rem;
+        }
+
+
+        /* --- Winner Announcement --- */
+        #winner-announcement {
+            text-align: center;
+            background: linear-gradient(45deg, var(--primary-color), var(--success-color));
+            color: white;
+            border: none;
+        }
+        #winner-name {
+            font-size: 2.5rem;
+            margin-top: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* --- Theme Switch --- */
+        .theme-switch-wrapper {
+            display: flex;
+            align-items: center;
+        }
+        .theme-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .theme-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 5px;
+        }
+        .slider.round {
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--primary-color);
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .sun-icon, .moon-icon {
+            color: #fff;
+        }
+        .moon-icon {
+            color: #f1c40f;
+        }
+        
+        /* --- Custom Modal --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-content h3 {
+            margin-bottom: 1rem;
+        }
+        .modal-content p {
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+        .modal-button {
+            padding: 0.6rem 1.2rem;
+        }
+        .modal-button.secondary {
+            background-color: var(--disabled-bg);
+            color: var(--text-color);
+        }
+        .modal-button.secondary:hover {
+            background-color: #d3d9df;
+        }
+        [data-theme="dark"] .modal-button.secondary:hover {
+             background-color: #3a3a3a;
+        }
+
+
+        /* --- Responsive Design --- */
+        @media (max-width: 992px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            header h1 {
+                font-size: 1.5rem;
+            }
+            .controls-container {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .app-container {
+                padding: 0 10px;
+            }
+            .card {
+                padding: 1rem;
+            }
+            #confirm-setup-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <h1>🎱 Pool Tournament Manager</h1>
+            <div class="controls-container">
+                <button id="reset-button" class="control-btn"><i class="fas fa-sync-alt"></i> Reset</button>
+                <div class="theme-switch-wrapper">
+                    <label class="theme-switch" for="theme-toggle">
+                        <input type="checkbox" id="theme-toggle" />
+                        <div class="slider round">
+                            <span class="sun-icon"><i class="fas fa-sun"></i></span>
+                            <span class="moon-icon"><i class="fas fa-moon"></i></span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Winner Declaration -->
+            <section id="winner-announcement" class="card" style="display: none;">
+                <h2>🏆 Tournament Winner! 🏆</h2>
+                <h3 id="winner-name"></h3>
+            </section>
+
+            <!-- Setup Section -->
+            <section id="setup-section" class="card">
+                <h2>1. Setup Tournament</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="num-players">Number of Players (4-100)</label>
+                        <input type="number" id="num-players" min="4" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="num-matches">Matches Per Player (Even, < Players)</label>
+                        <input type="number" id="num-matches" min="2" step="2">
+                    </div>
+                </div>
+                <div id="player-names-container"></div>
+                <button id="confirm-setup-btn">Confirm Setup & Generate Fixtures</button>
+                <p id="setup-error" class="error-message"></p>
+            </section>
+
+            <!-- Fixtures Section -->
+            <section id="fixtures-section" class="card" style="display: none;">
+                <h2>2. Fixtures & Results</h2>
+                <div id="fixtures-list" class="fixtures-grid"></div>
+            </section>
+            
+            <!-- Standings & Knockout -->
+            <div class="main-layout">
+                <!-- Standings Table -->
+                <section id="standings-section" class="card" style="display: none;">
+                    <h2>3. Standings</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Player</th>
+                                    <th>W</th>
+                                    <th>L</th>
+                                    <th>Pts</th>
+                                    <th>Balls Left</th>
+                                </tr>
+                            </thead>
+                            <tbody id="standings-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Knockout Stage -->
+                <section id="knockout-section" class="card" style="display: none;">
+                    <h2>4. Knockout Stage</h2>
+                    <div id="knockout-matches">
+                        <!-- Semi-Finals -->
+                        <div class="knockout-round">
+                            <h4>Semi-Finals</h4>
+                            <div class="knockout-match" id="semi-final-1"></div>
+                            <div class="knockout-match" id="semi-final-2"></div>
+                        </div>
+                        <!-- Final -->
+                        <div class="knockout-round">
+                            <h4>Final</h4>
+                            <div class="knockout-match" id="final"></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- Winner History -->
+            <section id="history-section" class="card">
+                <h2>Winner History</h2>
+                <div class="table-container">
+                    <table id="winner-history-table">
+                        <thead>
+                            <tr>
+                                <th>Winner</th>
+                                <th>Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="winner-history-body"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- Admin Password Modal -->
+    <div id="admin-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">Admin Action</h3>
+            <p id="modal-text">Please enter the admin password to proceed.</p>
+            <div class="form-group">
+                <label for="admin-password">Password</label>
+                <input type="password" id="admin-password">
+                <p id="modal-error" class="error-message" style="min-height: 1.2em; margin-top: 0.5rem;"></p>
+            </div>
+            <div class="modal-buttons">
+                <button id="modal-cancel-btn" class="modal-button secondary">Cancel</button>
+                <button id="modal-confirm-btn" class="modal-button">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- STATE MANAGEMENT ---
+            let state = {
+                players: [],
+                settings: { numPlayers: 0, matchesPerPlayer: 0 },
+                fixtures: [],
+                standings: [],
+                knockout: {
+                    active: false,
+                    semiFinals: [ 
+                        { match: [null, null], winner: null, ballsLeft: null, isSaved: false }, 
+                        { match: [null, null], winner: null, ballsLeft: null, isSaved: false } 
+                    ],
+                    final: { match: [null, null], winner: null, ballsLeft: null, isSaved: false }
+                },
+                isSetupConfirmed: false,
+                tournamentWinner: null,
+            };
+            const ADMIN_PASSWORD = "admin123";
+            let adminAction = { type: null, payload: null, callback: null };
+
+            // --- DOM ELEMENTS ---
+            const numPlayersInput = document.getElementById('num-players');
+            const numMatchesInput = document.getElementById('num-matches');
+            const playerNamesContainer = document.getElementById('player-names-container');
+            const confirmSetupBtn = document.getElementById('confirm-setup-btn');
+            const setupError = document.getElementById('setup-error');
+            const fixturesSection = document.getElementById('fixtures-section');
+            const fixturesList = document.getElementById('fixtures-list');
+            const standingsSection = document.getElementById('standings-section');
+            const standingsBody = document.getElementById('standings-body');
+            const knockoutSection = document.getElementById('knockout-section');
+            const knockoutMatches = document.getElementById('knockout-matches');
+            const winnerAnnouncement = document.getElementById('winner-announcement');
+            const winnerNameEl = document.getElementById('winner-name');
+            const resetButton = document.getElementById('reset-button');
+            const themeToggle = document.getElementById('theme-toggle');
+            const historyBody = document.getElementById('winner-history-body');
+            const adminModal = document.getElementById('admin-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalText = document.getElementById('modal-text');
+            const modalError = document.getElementById('modal-error');
+            const adminPasswordInput = document.getElementById('admin-password');
+            const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
+            // --- INITIALIZATION ---
+            const init = () => {
+                loadTheme();
+                loadWinnerHistory();
+                addEventListeners();
+            };
+
+            // --- EVENT LISTENERS ---
+            const addEventListeners = () => {
+                numPlayersInput.addEventListener('input', handlePlayerCountChange);
+                confirmSetupBtn.addEventListener('click', handleConfirmSetup);
+                resetButton.addEventListener('click', () => requestAdminAction('reset', 'Reset Tournament', 'This will clear all current tournament data and restart the application.', handleReset));
+                themeToggle.addEventListener('change', toggleTheme);
+                historyBody.addEventListener('click', (e) => {
+                    if (e.target.closest('.delete-history-btn')) {
+                        const index = e.target.closest('.delete-history-btn').dataset.index;
+                        requestAdminAction('delete', 'Delete History Entry', 'Are you sure you want to permanently delete this winner entry?', () => handleDeleteHistory(index));
+                    }
+                });
+                knockoutMatches.addEventListener('click', handleKnockoutClick);
+                modalCancelBtn.addEventListener('click', hideAdminModal);
+                modalConfirmBtn.addEventListener('click', confirmAdminAction);
+                adminModal.addEventListener('click', (e) => {
+                    if (e.target === adminModal) hideAdminModal();
+                });
+            };
+
+            // --- THEME ---
+            const loadTheme = () => {
+                const savedTheme = localStorage.getItem('poolTheme') || 'light';
+                document.documentElement.setAttribute('data-theme', savedTheme);
+                themeToggle.checked = savedTheme === 'dark';
+            };
+            const toggleTheme = () => {
+                const newTheme = themeToggle.checked ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('poolTheme', newTheme);
+            };
+
+            // --- SETUP LOGIC ---
+            const handlePlayerCountChange = () => {
+                if (state.isSetupConfirmed) return;
+                const count = parseInt(numPlayersInput.value, 10);
+                playerNamesContainer.innerHTML = '';
+                if (count >= 4 && count <= 100) {
+                    for (let i = 0; i < count; i++) {
+                        const inputGroup = document.createElement('div');
+                        inputGroup.className = 'form-group';
+                        inputGroup.innerHTML = `<label for="player-${i}">Player ${i + 1} Name</label><input type="text" id="player-${i}" class="player-name-input" placeholder="Enter name">`;
+                        playerNamesContainer.appendChild(inputGroup);
+                    }
+                }
+            };
+
+            const handleConfirmSetup = () => {
+                if (state.isSetupConfirmed) return;
+                const numPlayers = parseInt(numPlayersInput.value, 10);
+                const matchesPerPlayer = parseInt(numMatchesInput.value, 10);
+                const nameInputs = document.querySelectorAll('.player-name-input');
+                const names = Array.from(nameInputs).map(input => input.value.trim());
+                const uniqueNames = new Set(names.filter(name => name !== ''));
+                let error = '';
+                if (!(numPlayers >= 4 && numPlayers <= 100)) error = 'Players must be between 4 and 100.';
+                else if (nameInputs.length !== numPlayers || names.some(name => name === '')) error = 'All player names must be filled in.';
+                else if (uniqueNames.size !== names.length) error = 'Player names must be unique.';
+                else if (isNaN(matchesPerPlayer) || matchesPerPlayer <= 0) error = 'Matches per player must be a positive number.';
+                else if (matchesPerPlayer % 2 !== 0) error = 'Matches per player must be a multiple of 2.';
+                else if (matchesPerPlayer >= numPlayers) error = 'Matches per player must be less than the number of players.';
+                if (error) { setupError.textContent = error; return; }
+                setupError.textContent = '';
+                state.isSetupConfirmed = true;
+                state.settings = { numPlayers, matchesPerPlayer };
+                state.players = names;
+                document.querySelectorAll('#setup-section input, #setup-section button').forEach(el => el.disabled = true);
+                generateFixtures();
+                renderFixtures();
+                initializeStandings();
+                fixturesSection.style.display = 'block';
+                standingsSection.style.display = 'block';
+            };
+
+            // --- FIXTURE GENERATION ---
+            const generateFixtures = () => {
+                const players = [...state.players];
+                const matchesPerPlayer = state.settings.matchesPerPlayer;
+                const numPlayers = players.length;
+                const requiredTotalFixtures = (numPlayers * matchesPerPlayer) / 2;
+
+                let allPossibleMatches = [];
+                for (let i = 0; i < numPlayers; i++) {
+                    for (let j = i + 1; j < numPlayers; j++) {
+                        allPossibleMatches.push([players[i], players[j]]);
+                    }
+                }
+
+                let finalFixtures = [];
+                let attempts = 0;
+                
+                while (attempts < 50) { 
+                    allPossibleMatches.sort(() => Math.random() - 0.5);
+
+                    const matchCounts = players.reduce((acc, player) => ({ ...acc, [player]: 0 }), {});
+                    const proposedFixtures = [];
+
+                    for (const match of allPossibleMatches) {
+                        const [p1, p2] = match;
+                        if (matchCounts[p1] < matchesPerPlayer && matchCounts[p2] < matchesPerPlayer) {
+                            proposedFixtures.push({
+                                id: proposedFixtures.length,
+                                match: match,
+                                winner: null,
+                                ballsLeft: null,
+                                isSaved: false
+                            });
+                            matchCounts[p1]++;
+                            matchCounts[p2]++;
+                        }
+                    }
+
+                    const isScheduleValid = Object.values(matchCounts).every(count => count === matchesPerPlayer);
+
+                    if (isScheduleValid && proposedFixtures.length === requiredTotalFixtures) {
+                        finalFixtures = proposedFixtures;
+                        break; 
+                    }
+                    attempts++;
+                }
+
+                if (finalFixtures.length < requiredTotalFixtures) {
+                    console.error("Could not generate a valid fixture list. Please try again.");
+                    setupError.textContent = "Could not generate a fair schedule. Please try a different number of matches.";
+                    confirmSetupBtn.disabled = false;
+                    return;
+                }
+
+                state.fixtures = finalFixtures;
+            };
+
+            // --- RENDERING ---
+            const renderFixtures = () => {
+                fixturesList.innerHTML = '';
+                state.fixtures.forEach(fixture => {
+                    const fixtureEl = document.createElement('div');
+                    fixtureEl.className = 'fixture-card';
+                    fixtureEl.id = `fixture-${fixture.id}`;
+                    fixtureEl.innerHTML = `
+                        <h4>Match ${fixture.id + 1}</h4>
+                        <div class="fixture-match"><span>${fixture.match[0]}</span> <strong>vs</strong> <span>${fixture.match[1]}</span></div>
+                        <div class="fixture-result">
+                            <select id="winner-${fixture.id}" ${fixture.isSaved ? 'disabled' : ''}>
+                                <option value="">Select Winner</option>
+                                <option value="${fixture.match[0]}" ${fixture.winner === fixture.match[0] ? 'selected' : ''}>${fixture.match[0]}</option>
+                                <option value="${fixture.match[1]}" ${fixture.winner === fixture.match[1] ? 'selected' : ''}>${fixture.match[1]}</option>
+                            </select>
+                            <input type="number" id="balls-${fixture.id}" min="0" max="7" placeholder="Balls Left (0-7)" value="${fixture.ballsLeft ?? ''}" ${fixture.isSaved ? 'disabled' : ''}>
+                            <button id="save-${fixture.id}" ${fixture.isSaved ? 'disabled' : ''}>${fixture.isSaved ? 'Saved' : 'Save Result'}</button>
+                        </div>`;
+                    fixturesList.appendChild(fixtureEl);
+                });
+                state.fixtures.forEach(fixture => {
+                    if (!fixture.isSaved) {
+                        document.getElementById(`save-${fixture.id}`).addEventListener('click', () => saveResult(fixture.id));
+                    }
+                });
+            };
+            
+            const initializeStandings = () => {
+                state.standings = state.players.map(player => ({ name: player, wins: 0, losses: 0, points: 0, ballsLeft: 0 }));
+                renderStandings();
+            };
+
+            const updateStandings = () => {
+                state.standings.forEach(s => { s.wins = 0; s.losses = 0; s.points = 0; s.ballsLeft = 0; });
+                state.fixtures.filter(f => f.isSaved).forEach(fixture => {
+                    const winnerName = fixture.winner;
+                    const loserName = fixture.match.find(p => p !== winnerName);
+                    const winnerStats = state.standings.find(s => s.name === winnerName);
+                    const loserStats = state.standings.find(s => s.name === loserName);
+                    if (winnerStats) { winnerStats.wins++; winnerStats.points += 2; winnerStats.ballsLeft += fixture.ballsLeft; }
+                    if (loserStats) { loserStats.losses++; loserStats.points += 1; }
+                });
+                state.standings.sort((a, b) => b.points - a.points || b.wins - a.wins || b.ballsLeft - a.ballsLeft);
+                renderStandings();
+                checkTournamentCompletion();
+            };
+            
+            const renderStandings = () => {
+                standingsBody.innerHTML = '';
+                state.standings.forEach((player, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${index + 1}</td><td>${player.name}</td><td>${player.wins}</td><td>${player.losses}</td><td>${player.points}</td><td>${player.ballsLeft}</td>`;
+                    standingsBody.appendChild(row);
+                });
+            };
+
+            // --- MATCH LOGIC ---
+            const saveResult = (fixtureId) => {
+                const fixture = state.fixtures.find(f => f.id === fixtureId);
+                if (!fixture || fixture.isSaved) return;
+                const winner = document.getElementById(`winner-${fixture.id}`).value;
+                const ballsLeft = parseInt(document.getElementById(`balls-${fixture.id}`).value, 10);
+                if (!winner) { alert('Please select a winner.'); return; }
+                if (isNaN(ballsLeft) || ballsLeft < 0 || ballsLeft > 7) { alert('Balls left must be a number between 0 and 7.'); return; }
+                fixture.winner = winner; fixture.ballsLeft = ballsLeft; fixture.isSaved = true;
+                document.getElementById(`winner-${fixture.id}`).disabled = true;
+                document.getElementById(`balls-${fixture.id}`).disabled = true;
+                const saveBtn = document.getElementById(`save-${fixture.id}`);
+                saveBtn.disabled = true; saveBtn.textContent = 'Saved';
+                updateStandings();
+            };
+
+            // --- TOURNAMENT FLOW ---
+            const checkTournamentCompletion = () => {
+                const allFixturesPlayed = state.fixtures.every(f => f.isSaved);
+                if (!allFixturesPlayed || state.tournamentWinner) return;
+                if (state.settings.numPlayers > 4) {
+                    if (!state.knockout.active) startKnockoutStage();
+                } else {
+                    const winner = state.standings[0]?.name;
+                    declareWinner(winner);
+                }
+            };
+
+            const declareWinner = (winnerName) => {
+                if (!winnerName || state.tournamentWinner) return;
+                state.tournamentWinner = winnerName;
+                winnerNameEl.textContent = winnerName;
+                winnerAnnouncement.style.display = 'block';
+                saveWinnerToHistory(winnerName);
+            };
+
+            // --- KNOCKOUT STAGE ---
+            const startKnockoutStage = () => {
+                state.knockout.active = true;
+                knockoutSection.style.display = 'block';
+                const top4 = state.standings.slice(0, 4);
+                if (top4.length < 4) { console.error("Not enough players for knockout stage."); return; }
+                state.knockout.semiFinals[0].match = [top4[0].name, top4[3].name];
+                state.knockout.semiFinals[1].match = [top4[1].name, top4[2].name];
+                renderKnockoutMatch('semi-final-1', state.knockout.semiFinals[0]);
+                renderKnockoutMatch('semi-final-2', state.knockout.semiFinals[1]);
+                renderKnockoutMatch('final', state.knockout.final);
+            };
+
+            const handleKnockoutClick = (e) => {
+                if (!e.target.matches('.knockout-save-btn')) return;
+
+                const button = e.target;
+                const matchContainer = button.closest('.knockout-match');
+                const matchId = matchContainer.id;
+
+                const winnerSelect = document.getElementById(`${matchId}-winner`);
+                const ballsInput = document.getElementById(`${matchId}-balls`);
+
+                const winner = winnerSelect.value;
+                const ballsLeft = parseInt(ballsInput.value, 10);
+
+                if (!winner) { alert('Please select a winner.'); return; }
+                if (isNaN(ballsLeft) || ballsLeft < 0 || ballsLeft > 7) { alert('Balls left must be a number between 0 and 7.'); return; }
+                
+                winnerSelect.disabled = true;
+                ballsInput.disabled = true;
+                button.disabled = true;
+                button.textContent = 'Saved';
+
+                if (matchId.startsWith('semi-final')) {
+                    const matchIndex = parseInt(matchId.split('-')[2]) - 1;
+                    handleSemiFinalWinner(matchIndex, winner, ballsLeft);
+                } else if (matchId === 'final') {
+                    handleFinalWinner(winner, ballsLeft);
+                }
+            };
+
+            const renderKnockoutMatch = (elementId, matchObj) => {
+                const container = document.getElementById(elementId);
+                const players = matchObj.match;
+                container.innerHTML = `
+                    <div class="fixture-match"><span>${players[0] || '?'}</span> <strong>vs</strong> <span>${players[1] || '?'}</span></div>
+                    <div class="fixture-result">
+                        <select id="${elementId}-winner" ${!players[0] || !players[1] || matchObj.isSaved ? 'disabled' : ''}>
+                            <option value="">Select Winner</option>
+                            ${players[0] ? `<option value="${players[0]}" ${matchObj.winner === players[0] ? 'selected' : ''}>${players[0]}</option>` : ''}
+                            ${players[1] ? `<option value="${players[1]}" ${matchObj.winner === players[1] ? 'selected' : ''}>${players[1]}</option>` : ''}
+                        </select>
+                        <input type="number" id="${elementId}-balls" min="0" max="7" placeholder="Balls Left (0-7)" value="${matchObj.ballsLeft ?? ''}" ${!players[0] || !players[1] || matchObj.isSaved ? 'disabled' : ''}>
+                        <button id="${elementId}-save" class="knockout-save-btn" ${!players[0] || !players[1] || matchObj.isSaved ? 'disabled' : ''}>${matchObj.isSaved ? 'Saved' : 'Save Result'}</button>
+                    </div>`;
+            };
+
+            const handleSemiFinalWinner = (matchIndex, winner, ballsLeft) => {
+                state.knockout.semiFinals[matchIndex].winner = winner;
+                state.knockout.semiFinals[matchIndex].ballsLeft = ballsLeft;
+                state.knockout.semiFinals[matchIndex].isSaved = true;
+                
+                const sf1Winner = state.knockout.semiFinals[0].winner;
+                const sf2Winner = state.knockout.semiFinals[1].winner;
+                
+                if (sf1Winner && sf2Winner) {
+                    state.knockout.final.match = [sf1Winner, sf2Winner];
+                    renderKnockoutMatch('final', state.knockout.final);
+                }
+            };
+            
+            const handleFinalWinner = (winner, ballsLeft) => {
+                state.knockout.final.winner = winner;
+                state.knockout.final.ballsLeft = ballsLeft;
+                state.knockout.final.isSaved = true;
+                declareWinner(winner);
+            };
+            
+            // --- HISTORY & ADMIN ---
+            const getWinnerHistory = () => JSON.parse(localStorage.getItem('poolWinnerHistory') || '[]');
+            const saveWinnerToHistory = (winner) => {
+                const history = getWinnerHistory();
+                history.push({ winner, timestamp: new Date().toISOString() });
+                localStorage.setItem('poolWinnerHistory', JSON.stringify(history));
+                renderWinnerHistory();
+            };
+            const loadWinnerHistory = () => renderWinnerHistory();
+            const renderWinnerHistory = () => {
+                const history = getWinnerHistory();
+                historyBody.innerHTML = '';
+                history.forEach((entry, index) => {
+                    const row = document.createElement('tr');
+                    const date = new Date(entry.timestamp);
+                    row.innerHTML = `<td>${entry.winner}</td><td>${date.toLocaleString()}</td><td><button class="delete-history-btn" data-index="${index}" title="Delete Entry"><i class="fas fa-trash-alt"></i></button></td>`;
+                    historyBody.appendChild(row);
+                });
+            };
+            
+            const requestAdminAction = (type, title, text, callback) => {
+                adminAction = { type, callback };
+                modalTitle.textContent = title;
+                modalText.textContent = text;
+                adminModal.classList.add('visible');
+                adminPasswordInput.focus();
+            };
+            
+            const hideAdminModal = () => {
+                adminModal.classList.remove('visible');
+                adminPasswordInput.value = '';
+                modalError.textContent = '';
+                adminAction = { type: null, callback: null };
+            };
+            
+            const confirmAdminAction = () => {
+                if (adminPasswordInput.value === ADMIN_PASSWORD) {
+                    if (adminAction.callback) adminAction.callback();
+                    hideAdminModal();
+                } else {
+                    modalError.textContent = 'Incorrect password.';
+                    adminPasswordInput.value = '';
+                    adminPasswordInput.focus();
+                }
+            };
+            
+            const handleDeleteHistory = (index) => {
+                let history = getWinnerHistory();
+                history.splice(index, 1);
+                localStorage.setItem('poolWinnerHistory', JSON.stringify(history));
+                renderWinnerHistory();
+            };
+            
+            // **CHANGE**: Reset function no longer reloads the page
+            const handleReset = () => {
+                // Reset state object to its initial values
+                state = {
+                    players: [],
+                    settings: { numPlayers: 0, matchesPerPlayer: 0 },
+                    fixtures: [],
+                    standings: [],
+                    knockout: {
+                        active: false,
+                        semiFinals: [ 
+                            { match: [null, null], winner: null, ballsLeft: null, isSaved: false }, 
+                            { match: [null, null], winner: null, ballsLeft: null, isSaved: false } 
+                        ],
+                        final: { match: [null, null], winner: null, ballsLeft: null, isSaved: false }
+                    },
+                    isSetupConfirmed: false,
+                    tournamentWinner: null,
+                };
+
+                // Clear dynamic UI elements
+                playerNamesContainer.innerHTML = '';
+                fixturesList.innerHTML = '';
+                standingsBody.innerHTML = '';
+                document.getElementById('semi-final-1').innerHTML = '';
+                document.getElementById('semi-final-2').innerHTML = '';
+                document.getElementById('final').innerHTML = '';
+                
+                // Hide sections that appear after setup
+                fixturesSection.style.display = 'none';
+                standingsSection.style.display = 'none';
+                knockoutSection.style.display = 'none';
+                winnerAnnouncement.style.display = 'none';
+                winnerNameEl.textContent = '';
+
+                // Re-enable the setup section
+                document.querySelectorAll('#setup-section input, #setup-section button').forEach(el => {
+                    el.disabled = false;
+                    if (el.tagName === 'INPUT') {
+                        el.value = '';
+                    }
+                });
+
+                // Clear any previous error messages
+                setupError.textContent = '';
+
+                // Note: The winner history table is NOT cleared, fulfilling the requirement.
+            };
+
+            // --- START THE APP ---
+            init();
+        });
+    </script>
+</body>
+</html>
