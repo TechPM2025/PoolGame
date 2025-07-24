@@ -629,7 +629,7 @@
                 addEventListeners();
             };
             
-            // **NEW**: Handler for the beforeunload event to prevent accidental refresh
+            // Handler for the beforeunload event to prevent accidental refresh
             const preventAccidentalRefresh = (e) => {
                 // Standard way to show a confirmation prompt.
                 e.preventDefault();
@@ -705,14 +705,12 @@
                 document.querySelectorAll('#setup-section input, #setup-section button').forEach(el => el.disabled = true);
                 generateFixtures();
                 
-                // If fixture generation fails, stop here. The error is shown by generateFixtures.
                 if (state.fixtures.length === 0) {
-                    state.isSetupConfirmed = false; // unlock state
+                    state.isSetupConfirmed = false; 
                     document.querySelectorAll('#setup-section input, #setup-section button').forEach(el => el.disabled = false);
                     return;
                 }
 
-                // **NEW**: Activate the refresh protection
                 window.addEventListener('beforeunload', preventAccidentalRefresh);
 
                 renderFixtures();
@@ -771,7 +769,7 @@
                 if (finalFixtures.length < requiredTotalFixtures) {
                     console.error("Could not generate a valid fixture list. Please try again.");
                     setupError.textContent = "Could not generate a fair schedule. Please try a different number of matches.";
-                    state.fixtures = []; // Ensure fixtures are empty on failure
+                    state.fixtures = []; 
                     return;
                 }
 
@@ -818,8 +816,19 @@
                     const loserName = fixture.match.find(p => p !== winnerName);
                     const winnerStats = state.standings.find(s => s.name === winnerName);
                     const loserStats = state.standings.find(s => s.name === loserName);
-                    if (winnerStats) { winnerStats.wins++; winnerStats.points += 2; winnerStats.ballsLeft += fixture.ballsLeft; }
-                    if (loserStats) { loserStats.losses++; loserStats.points += 1; }
+                    
+                    // **CHANGE**: Implement new point system: 2 + balls left
+                    const points = 2 + fixture.ballsLeft;
+
+                    if (winnerStats) { 
+                        winnerStats.wins++; 
+                        winnerStats.points += points;
+                        winnerStats.ballsLeft += fixture.ballsLeft; 
+                    }
+                    if (loserStats) { 
+                        loserStats.losses++; 
+                        loserStats.points -= points;
+                    }
                 });
                 state.standings.sort((a, b) => b.points - a.points || b.wins - a.wins || b.ballsLeft - a.ballsLeft);
                 renderStandings();
@@ -870,7 +879,6 @@
                 winnerAnnouncement.style.display = 'block';
                 saveWinnerToHistory(winnerName);
                 
-                // **NEW**: Remove refresh protection when tournament is over
                 window.removeEventListener('beforeunload', preventAccidentalRefresh);
             };
 
@@ -1007,7 +1015,6 @@
             };
             
             const handleReset = () => {
-                // **NEW**: Remove refresh protection before resetting
                 window.removeEventListener('beforeunload', preventAccidentalRefresh);
 
                 // Reset state object to its initial values
